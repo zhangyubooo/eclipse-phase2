@@ -37,9 +37,11 @@ function loadLevel(index, now) {
   setScreen("play", now);
 }
 
-function startGame(now) {
+// levelIndex lets the title screen's level select start partway through (SPEC #25).
+// The end screen's time and falls then count from that level onward.
+function startGame(now, levelIndex = 0) {
   game.stats = { startedAt: now, falls: 0, finishedMs: 0 };
-  loadLevel(0, now);
+  loadLevel(levelIndex, now);
   playSound("start");
 }
 
@@ -79,6 +81,9 @@ function handleAction(action) {
     if (action.confirm) {
       unlockAudio(); // browsers only allow sound after a key press
       startGame(now);
+    } else if (action.selectLevel !== undefined && action.selectLevel < LEVELS.length) {
+      unlockAudio();
+      startGame(now, action.selectLevel);
     }
     return;
   }

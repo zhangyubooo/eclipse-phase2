@@ -322,9 +322,47 @@ function drawTitle(ctx, game, now) {
   ];
   lines.forEach((line, i) => drawText(ctx, line, w / 2, cardY + cardH + 36 + i * 24, { size: 15, color: COLORS.dimText }));
 
+  // Level select sits halfway between the how-to-play lines and "Press Enter".
+  const linesBottom = cardY + cardH + 36 + (lines.length - 1) * 24 + 12;
+  const promptY = h * 0.88;
+  drawLevelSelect(ctx, w / 2, (linesBottom + promptY) / 2);
+
   const pulse = 0.75 + 0.25 * Math.sin(now / 500);
-  drawText(ctx, "Press Enter to begin", w / 2, h * 0.88, { size: 22, weight: 600, alpha: pulse, glow: "rgba(255, 255, 255, 0.8)" });
+  drawText(ctx, "Press Enter to begin", w / 2, promptY, { size: 22, weight: 600, alpha: pulse, glow: "rgba(255, 255, 255, 0.8)" });
   drawText(ctx, CONTROLS_FOOTER, w / 2, h - 22, { size: 13, color: COLORS.dimText });
+}
+
+// One row listing every level as "[n] Name", centred on cx (SPEC #25).
+// The number keys that start each level are bound in input.js and handled in main.js.
+function drawLevelSelect(ctx, cx, y) {
+  const label = "Or jump to a level:";
+  const items = LEVELS.map((level, i) => `${i + 1}  ${level.name}`);
+  const gap = 28;
+  const pad = 10;
+
+  ctx.save();
+  ctx.font = `600 14px ${FONT}`;
+  const itemWidths = items.map((text) => ctx.measureText(text).width + pad * 2);
+  ctx.font = `500 14px ${FONT}`;
+  const labelWidth = ctx.measureText(label).width;
+  ctx.restore();
+
+  const total = labelWidth + gap + itemWidths.reduce((a, b) => a + b, 0) + gap * (items.length - 1);
+  let x = cx - total / 2;
+  drawText(ctx, label, x, y, { size: 14, color: COLORS.dimText, align: "left" });
+  x += labelWidth + gap;
+
+  items.forEach((text, i) => {
+    const iw = itemWidths[i];
+    roundedRect(ctx, x, y - 14, iw, 28, 14);
+    ctx.fillStyle = "rgba(255, 255, 255, 0.1)";
+    ctx.fill();
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.3)";
+    ctx.lineWidth = 1;
+    ctx.stroke();
+    drawText(ctx, text, x + pad, y, { size: 14, weight: 600, align: "left" });
+    x += iw + gap;
+  });
 }
 
 // ---------- End screen ----------

@@ -30,6 +30,18 @@ const BINDINGS = {
   Escape: { menu: true },
   KeyH: { toggleHints: true },
   KeyM: { toggleMute: true },
+
+  // Level select on the title screen (SPEC #25): 1 starts Level 1, and so on.
+  // Keys beyond LEVELS.length are ignored in main.js, so adding a level needs no change here.
+  Digit1: { selectLevel: 0 },
+  Digit2: { selectLevel: 1 },
+  Digit3: { selectLevel: 2 },
+  Digit4: { selectLevel: 3 },
+  Digit5: { selectLevel: 4 },
+  Digit6: { selectLevel: 5 },
+  Digit7: { selectLevel: 6 },
+  Digit8: { selectLevel: 7 },
+  Digit9: { selectLevel: 8 },
 };
 
 // On-screen labels for the bindings above, per player (move labels in screen-direction order).
