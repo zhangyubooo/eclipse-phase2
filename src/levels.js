@@ -127,4 +127,36 @@ const LEVELS = [
       { from: [9, 5], to: [9, 3], rotation: 180 },
     ],
   },
+  {
+    // Level 4 (SPEC #24, stretch), added in Phase 2. Introduces the sliding platform.
+    name: "Afterglow",
+    theme: "cosmos",
+    intro: "One stone won't hold still. Ride it across, and mind the gap it leaves behind.",
+    sky: ["#1a1240", "#5a3a7a", "#e8a0a8"],
+    tips: {
+      sol: "Ride the drifting stone across, then hold the plate for {partner}.",
+      luna: "Ride the drifting stone across, then wait for {partner}'s bridge.",
+    },
+    // Both: launch pad -> sliding platform (3,2) <-> (5,2) -> middle island.
+    // Luna: plate bridge (Sol holds 8,1) -> Luna's ledge. Sol: illusion (270°) -> Sol's ledge.
+    tiles: [
+      ...rect(0, 1, 2, 3, 1),   // launch pad
+      ...rect(6, 1, 8, 3, 1),   // middle island (plate at 8,1)
+      ...rect(10, 2, 10, 4, 1), // Luna's ledge
+      ...rect(6, 5, 7, 6, 2),   // Sol's ledge
+    ],
+    // Sliding platforms: one tile that swaps between `a` and `b` every 2 s (main.js) and
+    // carries whoever stands on it. Neither end belongs in `tiles`.
+    platforms: [{ a: [3, 2], b: [5, 2], h: 1 }],
+    plates: [{ at: [8, 1], bridge: [[9, 3, 1]] }],
+    decor: [
+      ["orb", 0, 2, -0.2, 0.2], ["stardust", 1, 3, 0.3, 0.3],
+      ["crystal", 7, 2], ["stardust", 6, 1, -0.3, -0.3],
+      ["orb", 10, 2, 0.3, -0.3],
+      ["crystal", 7, 5], ["stardust", 6, 6, -0.3, 0.3],
+    ],
+    start: { sol: [0, 1], luna: [0, 3] },
+    exits: { sol: [7, 6], luna: [10, 4] },
+    connections: [{ from: [6, 3], to: [6, 5], rotation: 270 }],
+  },
 ];

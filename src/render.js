@@ -14,6 +14,8 @@ const COLORS = {
   plateLit: "#ffd98a",
   illusion: "255, 222, 140",
   fall: "255, 90, 90",
+  platformTop: "#c9f2ea",        // sliding platforms (SPEC #24): a cool mint, unlike bridges and ground
+  platformTrack: "170, 240, 225", // dashed outline on both ends of a platform's track
 };
 
 const CHARACTER_STYLES = {
@@ -66,7 +68,11 @@ function rotatePoint(x, y, angle, cx, cy) {
 
 // Size of one tile on screen, chosen so the whole level fits in one half.
 function tileMetrics(level, halfW, h) {
-  const points = [...level.tiles, ...(level.plates || []).flatMap((p) => p.bridge)];
+  const points = [
+    ...level.tiles,
+    ...(level.plates || []).flatMap((p) => p.bridge),
+    ...(level.platforms || []).flatMap((p) => [[...p.a, p.h], [...p.b, p.h]]),
+  ];
   const xs = points.map((t) => t[0]);
   const ys = points.map((t) => t[1]);
   const spanX = Math.max(...xs) - Math.min(...xs) + 1;
@@ -235,6 +241,17 @@ function drawPlateBridge(ctx, x, y, h, angle, m, alpha, theme) {
     drawBlock(ctx, x, y, h - (1 - alpha) * 0.4, angle, m, theme, COLORS.bridgeTop);
     ctx.restore();
   }
+}
+
+// Sliding platform track end (SPEC #24): a dashed outline, so players can see both places
+// the platform stops even while it's away. Drawn under the platform itself.
+function drawPlatformTrackEnd(ctx, x, y, h, angle, m) {
+  tilePath(ctx, x, y, h, angle, m, 0.06);
+  ctx.setLineDash([3, 5]);
+  ctx.strokeStyle = rgba(COLORS.platformTrack, 0.6);
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+  ctx.setLineDash([]);
 }
 
 // Exit: a pulsing ring in the character's colour with a soft beam of light above it.
@@ -461,6 +478,14 @@ function drawView(ctx, game, view, x0, w, h, now, showHints) {
   world.plates.forEach((plate, i) => {
     const alpha = plateBridgeAlpha(anims, world, i, now);
     for (const [bx, by, bh] of plate.bridge) add(bx, by, bh, 0, () => drawPlateBridge(ctx, bx, by, bh, angle, m, alpha, theme));
+  });
+
+  // Sliding platforms (SPEC #24): both track ends as outlines, then the platform where it is
+  // right now (mid-slide it sits between them). Layer 0.5 puts it over its own outline.
+  world.platforms.forEach((pf, i) => {
+    for (const [ex, ey] of [pf.a, pf.b]) add(ex, ey, pf.h, 0, () => drawPlatformTrackEnd(ctx, ex, ey, pf.h, angle, m));
+    const pose = platformPose(anims, world, i, now);
+    add(pose.x, pose.y, pf.h, 0.5, () => drawBlock(ctx, pose.x, pose.y, pf.h, angle, m, theme, COLORS.platformTop));
   });
 
   // Scenery is drawn upright (like a sprite) at its spot on the tile, sorted by depth.

@@ -30,6 +30,8 @@ function createWorld(levelIndex, level = LEVELS[levelIndex]) {
     stairs: new Map((level.stairs || []).map(([x, y, dir]) => [key(x, y), dir])),
     solid: new Set((level.decor || []).filter(([type]) => SOLID_DECOR.has(type)).map(([, x, y]) => key(x, y))),
     plates: level.plates || [],
+    platforms: level.platforms || [], // sliding platforms (SPEC #24); see shiftPlatforms()
+    platformAtB: [],                  // per platform: false = sitting on its `a` end, true = on `b`
     chars: {},
     rotations: [0, 0],
   };
@@ -37,13 +39,15 @@ function createWorld(levelIndex, level = LEVELS[levelIndex]) {
   return world;
 }
 
-// Put both characters back on their start tiles and both views back to 0°.
+// Put both characters back on their start tiles, both views back to 0°,
+// and every sliding platform back on its `a` end.
 function resetPositions(world) {
   for (const p of PLAYERS) {
     const [x, y] = world.level.start[p.id];
     world.chars[p.id] = { x, y, facing: 1 }; // facing is a world direction; start facing east
   }
   world.rotations = [0, 0];
+  world.platformAtB = world.platforms.map(() => false);
 }
 
 // A plate is pressed while a character who can press plates (Sol) stands on it.
@@ -56,9 +60,49 @@ function activePlates(world) {
   return world.plates.map((_, i) => i).filter((i) => isPlateActive(world, i));
 }
 
+// ---------- Sliding platforms (SPEC #24) ----------
+// A platform { a: [x, y], b: [x, y], h } is one tile that sits on either end of its track
+// and swaps ends every PLATFORM_INTERVAL_MS (the clock lives in main.js, because world.js
+// has no notion of time). Neither end is listed in the level's `tiles`: the empty end is
+// empty space, so stepping there while the platform is away is a fall.
+
+function platformPosition(world, i) {
+  const p = world.platforms[i];
+  return world.platformAtB[i] ? p.b : p.a;
+}
+
+// Index of the platform currently sitting on (x, y), or -1.
+function platformIndexAt(world, x, y) {
+  return world.platforms.findIndex((_, i) => {
+    const [px, py] = platformPosition(world, i);
+    return px === x && py === y;
+  });
+}
+
+// Moves every platform to its other end and carries anyone standing on it.
+// Returns [{ id, from: [x, y], to: [x, y] }] for each carried character, for the animation.
+// Assumes no two platforms share an end; otherwise a rider could be carried twice.
+function shiftPlatforms(world) {
+  const carried = [];
+  world.platforms.forEach((_, i) => {
+    const from = platformPosition(world, i);
+    world.platformAtB[i] = !world.platformAtB[i];
+    const to = platformPosition(world, i);
+    for (const p of PLAYERS) {
+      const ch = world.chars[p.id];
+      if (ch.x !== from[0] || ch.y !== from[1]) continue;
+      ch.x = to[0];
+      ch.y = to[1];
+      carried.push({ id: p.id, from, to });
+    }
+  });
+  return carried;
+}
+
 // The tile at (x, y) as { h, kind, solid, dir }, or undefined for empty space.
 // kind is "ground", "mist", "plate", "stairs" (climbs one unit toward world direction `dir`),
-// or "bridge" (exists only while its plate is pressed). solid = blocked by scenery.
+// "bridge" (exists only while its plate is pressed), or "platform" (a sliding platform that
+// is on this end of its track right now). solid = blocked by scenery.
 function tileAt(world, x, y) {
   const k = key(x, y);
   const h = world.heights.get(k);
@@ -74,6 +118,8 @@ function tileAt(world, x, y) {
       if (bx === x && by === y) return { h: bh, kind: "bridge", solid: false };
     }
   }
+  const platform = platformIndexAt(world, x, y);
+  if (platform !== -1) return { h: world.platforms[platform].h, kind: "platform", solid: false };
   return undefined;
 }
 

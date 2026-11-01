@@ -7,12 +7,14 @@ const GLIDE_MS = 150;       // per tile travelled, so illusion jumps take a litt
 const BUMP_MS = 180;        // nudge toward a tile you can't enter
 const FALL_MS = 1100;
 const PLATE_FADE_MS = 280;  // plate bridges fading in and out
+const PLATFORM_SLIDE_MS = 600; // a sliding platform travelling between its ends (SPEC #24)
 
 function createAnimations() {
   return {
     views: [null, null], // per view: { from, to, start } in quarter turns
     chars: {},           // per character id: { from, to, start, duration, bumpDir? }
     plates: {},          // per plate index: { since } — when it last turned on or off
+    platforms: {},       // per sliding platform index: { from: [x, y], to: [x, y], start }
     fall: null,          // { id, from: {x, y, h}, dir (null = straight down), start }
   };
 }
@@ -44,6 +46,26 @@ function startFall(anims, id, from, dir, now) {
 
 function markPlateChanged(anims, plateIndex, now) {
   anims.plates[plateIndex] = { since: now };
+}
+
+function startPlatformSlide(anims, platformIndex, from, to, now) {
+  anims.platforms[platformIndex] = { from, to, start: now };
+}
+
+// A character carried by a sliding platform. It uses the platform's duration (and the same
+// easing in characterPose) so the rider stays on the platform the whole way. While riding,
+// isPlayerBusy() is true, so that player's keys are ignored until the platform arrives.
+function startRide(anims, id, from, to, now) {
+  anims.chars[id] = { from, to, start: now, duration: PLATFORM_SLIDE_MS };
+}
+
+// Where to draw sliding platform i: { x, y }, fractional while it slides.
+function platformPose(anims, world, i, now) {
+  const [x, y] = platformPosition(world, i);
+  const a = anims.platforms[i];
+  if (!a || now - a.start >= PLATFORM_SLIDE_MS) return { x, y };
+  const t = easeInOut(progress(a.start, PLATFORM_SLIDE_MS, now));
+  return { x: a.from[0] + (a.to[0] - a.from[0]) * t, y: a.from[1] + (a.to[1] - a.from[1]) * t };
 }
 
 function isRotating(anims, view, now) {

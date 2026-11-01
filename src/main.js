@@ -3,6 +3,7 @@
 // Screens: "title" -> "play" (levels 1..N) -> "end" -> back to "title".
 
 const LEVEL_COMPLETE_MS = 2600;
+const PLATFORM_INTERVAL_MS = 2000; // sliding platforms swap ends this often (SPEC #24)
 
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
@@ -16,6 +17,7 @@ const game = {
   progress: newProgress(),
   levelSince: 0,        // drives the level title card
   completeSince: 0,     // non-zero while "Level Complete" shows; input is ignored
+  platformSince: 0,     // when sliding platforms last swapped ends (or the level (re)started)
   fallReason: "",
   showHints: true,
   stats: { startedAt: 0, falls: 0, finishedMs: 0 },
@@ -34,6 +36,7 @@ function loadLevel(index, now) {
   game.progress = newProgress();
   game.levelSince = now;
   game.completeSince = 0;
+  game.platformSince = now;
   setScreen("play", now);
 }
 
@@ -48,6 +51,25 @@ function startGame(now, levelIndex = 0) {
 function restartLevel() {
   resetPositions(game.world);
   game.anims = createAnimations();
+  game.platformSince = performance.now(); // platforms start a fresh 2 s cycle from their `a` end
+}
+
+// Sliding platforms swap ends every PLATFORM_INTERVAL_MS and carry their riders (SPEC #24).
+// frame() only calls this while nobody is falling and no "Level Complete" banner is up.
+function updatePlatforms(now) {
+  const { world, anims } = game;
+  if (world.platforms.length === 0 || now - game.platformSince < PLATFORM_INTERVAL_MS) return;
+  game.platformSince = now;
+
+  const before = world.platforms.map((_, i) => platformPosition(world, i));
+  const carried = shiftPlatforms(world);
+  world.platforms.forEach((_, i) => startPlatformSlide(anims, i, before[i], platformPosition(world, i), now));
+
+  for (const c of carried) {
+    const h = standHeight(world, c.to[0], c.to[1]);
+    startRide(anims, c.id, { x: c.from[0], y: c.from[1], h }, { x: c.to[0], y: c.to[1], h }, now);
+  }
+  if (carried.length > 0) playSound("ride");
 }
 
 // Loads the next level, or shows the end screen after the last one.
@@ -198,6 +220,7 @@ function frame(now) {
   if (game.screen === "play") {
     if (game.completeSince && now - game.completeSince >= LEVEL_COMPLETE_MS) advanceLevel(now);
     else if (game.anims.fall && !isFalling(game.anims, now)) restartLevel();
+    else if (!game.completeSince && !isFalling(game.anims, now)) updatePlatforms(now);
   }
   drawFrame(ctx, game, now);
   requestAnimationFrame(frame);

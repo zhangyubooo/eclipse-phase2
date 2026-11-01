@@ -89,6 +89,7 @@ const SOUNDS = {
   start: () => [392, 523, 659].forEach((f, i) => tone(f, { at: i * 0.08, dur: 1.1, gain: 0.06 })),
   finale: () => [262, 392, 523, 659, 784, 1047].forEach((f, i) => tone(f, { at: i * 0.14, dur: 2.2, gain: 0.06 })),
   toggle: () => tone(880, { dur: 0.08, gain: 0.04 }),
+  ride: () => whoosh({ dur: 0.5, from: 300, to: 700, gain: 0.04 }), // carried by a sliding platform
 };
 
 function playSound(name) {

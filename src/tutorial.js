@@ -55,6 +55,8 @@ function tipFor(world, prog, playerIndex) {
     if (p.pressesPlates && here.kind === "plate") tip = "Your weight holds the bridge up. Wait for {partner} to cross.";
     else if (!p.pressesPlates && here.kind === "plate") tip = "Plates only answer to {partner}'s weight.";
     else if (!p.pressesPlates && activePlates(world).length > 0) tip = "{partner}'s bridge is up. Cross while it lasts!";
+    else if (here.kind === "platform") tip = "Hold on. The drifting stone carries you to the other end.";
+    else if (near("platform")) tip = "The drifting stone is beside you. Step on before it slides away!";
     else if (!p.walksOnMist && near("mist")) tip = "Mist can't hold you. Only {partner} can cross it.";
     else if (p.walksOnMist && near("mist")) tip = "Mist feels solid beneath you. Step on through.";
     else tip = (world.level.tips && world.level.tips[p.id]) || "";

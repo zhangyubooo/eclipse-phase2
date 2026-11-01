@@ -92,6 +92,31 @@ check("Sol is stopped by mist, not dropped", tryMove(w, 0, s(E, 0)).result === "
 put("sol", 2, 0); put("luna", 3, 2);
 check("win needs both on their exits", isWon(w));
 
+// Sliding platforms (SPEC #24). Ground at (0,0) and (3,0); the platform swaps between (1,0) and (2,0).
+const PLATFORM = {
+  name: "platform",
+  tiles: [[0, 0, 0], [3, 0, 0]],
+  platforms: [{ a: [1, 0], b: [2, 0], h: 0 }],
+  start: { sol: [0, 0], luna: [3, 0] },
+  exits: { sol: [3, 0], luna: [0, 0] },
+  connections: [],
+};
+w = createWorld(-1, PLATFORM);
+check("platform starts on its a end", tileAt(w, 1, 0).kind === "platform" && tileAt(w, 2, 0) === undefined);
+check("tip points out a platform next to you", tipFor(w, newProgress(), 0).includes("drifting stone"));
+check("stepping where the platform isn't is a fall", previewMove(w, 1, s(W, 0)).result === "fell");
+check("stepping onto the platform", tryMove(w, 0, s(E, 0)).result === "moved" && w.chars.sol.x === 1);
+let carried = shiftPlatforms(w);
+check("platform carries its rider", w.chars.sol.x === 2 && carried.length === 1 && carried[0].id === "sol");
+check("a character not on the platform stays put", w.chars.luna.x === 3);
+check("the old end is empty space once the platform leaves", tileAt(w, 1, 0) === undefined);
+check("rider steps off at the far end", tryMove(w, 0, s(E, 0)).result === "moved" && w.chars.sol.x === 3);
+carried = shiftPlatforms(w);
+check("an empty platform carries nobody", carried.length === 0 && tileAt(w, 1, 0).kind === "platform");
+shiftPlatforms(w);
+resetPositions(w);
+check("restart puts the platform back on its a end", w.platformAtB[0] === false);
+
 // Tips
 w = createWorld(0);
 const prog = newProgress();

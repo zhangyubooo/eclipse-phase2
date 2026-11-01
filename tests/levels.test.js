@@ -19,14 +19,19 @@ function check(name, cond) {
 }
 
 // Shortest number of key presses to win, or -1 if the level can't be won.
+// Sliding platforms (SPEC #24) add their ends to the state, plus one extra action:
+// "wait for the platforms to swap". In the real game they swap every 2 s whether you
+// want them to or not, but a swap never strands anyone (riders are carried and nobody
+// else can stand on an empty end), so any path the solver finds can be played for real.
 function solve(level) {
   const w = createWorld(-1, level);
-  const encode = () => [w.chars.sol.x, w.chars.sol.y, w.chars.luna.x, w.chars.luna.y, ...w.rotations].join(",");
+  const encode = () => [w.chars.sol.x, w.chars.sol.y, w.chars.luna.x, w.chars.luna.y, ...w.rotations, ...w.platformAtB.map(Number)].join(",");
   const load = (s) => {
-    const [sx, sy, lx, ly, r0, r1] = s.split(",").map(Number);
+    const [sx, sy, lx, ly, r0, r1, ...sides] = s.split(",").map(Number);
     Object.assign(w.chars.sol, { x: sx, y: sy });
     Object.assign(w.chars.luna, { x: lx, y: ly });
     w.rotations = [r0, r1];
+    w.platformAtB = sides.map(Boolean);
   };
   const dist = new Map([[encode(), 0]]);
   const queue = [encode()];
@@ -43,6 +48,7 @@ function solve(level) {
         if ((r === "moved" || r === "jumped") && strandedCharacters(w).length === 0) next.push(encode());
       }
     }
+    if (w.platforms.length > 0) { load(s); shiftPlatforms(w); next.push(encode()); }
     for (const n of next) if (!dist.has(n)) { dist.set(n, dist.get(s) + 1); queue.push(n); }
   }
   return -1;
@@ -55,12 +61,15 @@ const without = {
   plates: (l) => ({ ...l, plates: [] }),
   plate: (l, i) => ({ ...l, plates: l.plates.filter((_, j) => j !== i) }),
   stairs: (l) => ({ ...l, stairs: [] }),
+  platforms: (l) => ({ ...l, platforms: [] }),
   // Mist becomes empty space, so nobody can use it.
   mist: (l) => ({ ...l, mist: [], tiles: l.tiles.filter(([x, y]) => !(l.mist || []).some(([mx, my]) => mx === x && my === y)) }),
 };
 
-const [L1, L2, L3] = LEVELS;
-check("exactly three levels", LEVELS.length === 3);
+const [L1, L2, L3, L4] = LEVELS;
+// SPEC #19 says "exactly three levels", but stretch #24 adds a fourth after Level 3.
+// Read together: three core levels, plus Level 4.
+check("three core levels plus stretch Level 4", LEVELS.length === 4);
 for (const [i, l] of LEVELS.entries()) check("level " + (i + 1) + " is solvable (" + solve(l) + " presses)", solve(l) > 0);
 
 check("L1 has no plates or mist", !(L1.plates || []).length && !(L1.mist || []).length);
@@ -76,6 +85,11 @@ check("L3 needs the mist", solve(without.mist(L3)) === -1);
 for (let i = 0; i < L3.connections.length; i++) {
   check("L3 needs connection " + i, solve(without.connection(L3, i)) === -1);
 }
+
+check("L3 has no sliding platforms (they start in Level 4)", !(L3.platforms || []).length);
+check("L4 needs its sliding platform (SPEC #24)", solve(without.platforms(L4)) === -1);
+check("L4 needs Sol to hold the plate", solve(without.plates(L4)) === -1);
+check("L4 needs its illusion connection", solve(without.connections(L4)) === -1);
 
 // Scenery sits on real tiles, and solid scenery never covers anything a player must stand on.
 for (const [i, l] of LEVELS.entries()) {
